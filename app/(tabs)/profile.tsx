@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { View, Text, Switch, Button, Alert } from 'react-native';
-import * as Location from 'expo-location';
-import { useSupabase, useSession } from '@/lib/supabase/client';
 import { upsertLocation } from '@/lib/location';
+import { useSession, useSupabase } from '@/lib/supabase/client';
+import * as Location from 'expo-location';
+import { useEffect, useState } from 'react';
+import { Alert, Button, Switch, Text, View } from 'react-native';
 
 export default function Profile() {
     const supabase = useSupabase();

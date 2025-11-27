@@ -5,11 +5,12 @@ export default function RootLayout() {
   return (
     <SupabaseProvider>
       <Stack>
-        <Stack.Screen name="index" options={{ title: 'Circle Check' }} />
-        <Stack.Screen name="map" options={{ title: 'Map' }} />
+        {/* Index will redirect into /auth or /(tabs) */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        {/* Tabs group (Map, Circles, Profile) */}
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        {/* Standalone auth screen */}
         <Stack.Screen name="auth" options={{ title: 'Sign In' }} />
-        <Stack.Screen name="circle" options={{ title: 'Your Circles' }} />
-        <Stack.Screen name="profile" options={{ title: 'Profile & Sharing' }} />
       </Stack>
     </SupabaseProvider>
   );

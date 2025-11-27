@@ -1,6 +1,6 @@
+import { useSession, useSupabase } from '@/lib/supabase/client';
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, Button, FlatList, Alert } from 'react-native';
-import { useSupabase, useSession } from '@/lib/supabase/client';
+import { Alert, Button, FlatList, Text, TextInput, View } from 'react-native';
 
 type Circle = { id: string; name: string };
 

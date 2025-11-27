@@ -1,15 +1,21 @@
 {
   "expo": {
-    "name": "circle-check-1",
-    "slug": "circle-check-1",
+    "name": "Circle Check",
+    "slug": "circle-check",
+    "scheme": "circlecheck",
     "version": "1.0.0",
+    "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "circlecheck1",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Circle Check uses your location to share it with trusted contacts.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow background location to keep your location updated for your circle.",
+        "NSLocationAlwaysUsageDescription": "Allow background location to keep your location updated for your circle."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +25,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "FOREGROUND_SERVICE"
+      ],
+      "package": "com.circlecheck.app"
     },
     "web": {
       "output": "static",
@@ -38,7 +50,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

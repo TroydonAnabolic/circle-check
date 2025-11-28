@@ -101,7 +101,7 @@ Example test POST after deploy: curl -X POST
 -d '{"record":{"user_id":"<uuid>","lat":40.0,"lng":-74.0,"updated_at":"2025-11-28T12:00:00Z"}}'
 https://<project-ref>.supabase.co/functions/v1/notify-on-location
 
-Optional next enhancements
+TODOS:
 Add exit notifications (inside → outside) for “leave radius”.
 Rate limit: Create a table notification_events and only send if last event for (subscription_id, subject_user_id) > X seconds.
 Batch device token queries for all subscriptions first (reduce round trips).

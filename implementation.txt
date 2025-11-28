@@ -1,0 +1,109 @@
+Official docs (current pattern): Deno.serve((req) => { ... })
+
+Your code: import { serve } from "https://deno.land/std/http/server.ts"; serve((req) => { ... });
+
+Recommendation:
+
+Switch to Deno.serve: it’s now built into the Deno runtime, has slightly lower overhead and matches Supabase's examples.
+Your logic remains unchanged; just remove the import.
+Example refactor: Deno.serve(async (req) => { // everything else identical });
+
+No breaking change—this is stylistic modernization.
+
+Directory & naming conventions
+Docs: supabase/functions/hello-world/index.ts You should keep: supabase/functions/notify-on-location/index.ts
+
+API endpoint format (current official docs): https://<project-ref>.supabase.co/functions/v1/<function-name>
+
+Older / alternative domain pattern: https://<project-ref>.functions.supabase.co/<function-name>
+
+Which should you use?
+
+The docs show the /functions/v1/ path under the project URL. That is the canonical path for invoking via supabase.functions.invoke and for browser/fetch calls.
+The functions.supabase.co domain has been (and may still be) used internally or for edge routing; if you see it in CLI output you can use it, but prefer the documented /functions/v1/ form for consistency. Check via: supabase functions list It will print the invoke URL.
+In your Realtime Webhook configuration, use: https://<project-ref>.supabase.co/functions/v1/notify-on-location
+
+(If you previously used the functions.supabase.co form and it works, no urgent need to change, but standardize for clarity.)
+
+Authentication and --no-verify-jwt
+Default behavior:
+
+Edge Functions expect an Authorization: Bearer <JWT> (anon/service token or user JWT). Your webhook style:
+Supabase Realtime Webhooks do NOT include a JWT; they just POST JSON. Therefore you must: A) Deploy with --no-verify-jwt OR B) Supply a valid JWT (not typical for webhooks) OR C) Use “Generic HTTP Endpoint” if available (still needs a secret in header).
+Since you already added HOOK_SECRET header verification, deploying with: supabase functions deploy notify-on-location --no-verify-jwt is safe for your use case (you layered your own auth with HOOK_SECRET). If you forget --no-verify-jwt the function will return 401 to the webhook.
+
+Security reminder:
+
+Keep HOOK_SECRET long and private.
+If HOOK_SECRET is compromised, rotate it (update secrets + webhook header).
+Do NOT expose SUPABASE_SERVICE_ROLE_KEY publicly—only in function secrets.
+Secrets loading: has it changed?
+Process is still: supabase secrets set KEY=VALUE [KEY2=VALUE2 ...]
+
+Or file-based: supabase secrets set --env-file supabase/.env
+
+No changes in concept; just note:
+
+SUPABASE_URL should be https://<project-ref>.supabase.co (not the functions domain).
+SUPABASE_SERVICE_ROLE_KEY from Project Settings > API > service_role.
+HOOK_SECRET: you generate (openssl rand -hex 32).
+To view: supabase secrets list (Values shown masked)
+
+To update (overwrite): supabase secrets set SUPABASE_SERVICE_ROLE_KEY=<new-value>
+
+To remove: supabase secrets unset HOOK_SECRET
+
+Redeploy after secret changes to ensure fresh env at edge.
+
+Local development differences
+Docs show: supabase start # spins local Postgres/auth/etc supabase functions serve hello-world
+
+Your earlier approach (without supabase start) works only for pure function code that doesn’t rely on local Postgres. For integration testing (e.g. calling RPCs locally), start full services: supabase start supabase functions serve notify-on-location --env-file supabase/.env
+
+If you skip supabase start, RPC/database calls will target your remote project via SUPABASE_URL—still valid, just be aware you’re hitting production data.
+
+Using the service role key inside the function
+Unchanged:
+
+It allows bypassing RLS so the function can read radius_subscriptions, entry_states, device_tokens across users.
+Keep it ONLY as a secret (never in app code).
+Optional hardening:
+
+Restrict what the function does (you already scope queries tightly).
+Consider logging minimal info (avoid dumping secrets or full record in logs).
+Updated best-practice skeleton for your function
+Below is a modernized version using Deno.serve and some micro-improvements (short-circuit when no subs, group pushes):
+
+
+supabase/functions/notify-on-location/index.ts
+// Secrets required:
+// - SUPABASE_URL
+// - SUPABASE_SERVICE_ROLE_KEY
+// Optional shared secret (recommended for webhook auth):
+// - HOOK_SECRET
+//
+Has anything materially changed in implementation?
+Key points relative to your earlier instructions:
+
+Using Deno.serve instead of imported serve (recommended).
+Clarification that for webhooks you must deploy with --no-verify-jwt or supply a JWT—my earlier guidance implied this but did not emphasize the flag.
+Endpoint path: prefer /functions/v1/<name> (as in docs). If you used the functions.supabase.co form earlier, that’s fine but standardize going forward.
+Secrets process is unchanged; still use supabase secrets set and supabase functions deploy.
+Your HOOK_SECRET approach remains valid and recommended.
+Everything else—service role usage, RPC calls, RLS bypass, distance calculation—remains correct.
+
+Quick action checklist to align with current best practice
+[ ] Change import to Deno.serve [ ] Redeploy with --no-verify-jwt [ ] Confirm webhook points to /functions/v1/notify-on-location [ ] Verify secrets: SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL, HOOK_SECRET [ ] Test with curl sending x-hook-secret header and sample payload
+
+Example test POST after deploy: curl -X POST
+-H "Content-Type: application/json"
+-H "x-hook-secret: <HOOK_SECRET>"
+-d '{"record":{"user_id":"<uuid>","lat":40.0,"lng":-74.0,"updated_at":"2025-11-28T12:00:00Z"}}'
+https://<project-ref>.supabase.co/functions/v1/notify-on-location
+
+Optional next enhancements
+Add exit notifications (inside → outside) for “leave radius”.
+Rate limit: Create a table notification_events and only send if last event for (subscription_id, subject_user_id) > X seconds.
+Batch device token queries for all subscriptions first (reduce round trips).
+Add the function name and event type to response logs for easier debugging.
+Adding a Radius Alerts management screen and device token registration helper next

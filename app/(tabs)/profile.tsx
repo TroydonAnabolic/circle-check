@@ -1,5 +1,6 @@
 import { upsertLocation } from '@/lib/location';
 import { useSession, useSupabase } from '@/lib/supabase/client';
+import { registerPushToken } from '@/lib/notifications';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Switch, Text, View } from 'react-native';
@@ -13,6 +14,14 @@ export default function Profile() {
     useEffect(() => {
         return () => watcher?.remove();
     }, [watcher]);
+
+    useEffect(() => {
+        (async () => {
+            if (session?.user) {
+                await registerPushToken(supabase, session.user.id);
+            }
+        })();
+    }, [session?.user?.id]);
 
     const toggleShare = async (val: boolean) => {
         setSharing(val);

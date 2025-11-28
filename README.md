@@ -118,7 +118,7 @@ These are exposed at build time (public keys only). Never embed service role key
    - Create & deploy (see Edge Function section below).
 6. Set secrets for Edge Function:
    - `supabase secrets set SUPABASE_URL=https://YOUR-PROJECT.supabase.co`
-   - `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=YOUR-SERVICE-ROLE-KEY`
+   - `supabase secrets set SERVICE_ROLE_KEY=YOUR-SERVICE-ROLE-KEY`
    - (Optional) `supabase secrets set HOOK_SECRET=<random-long-string>`
 
 ---
@@ -177,35 +177,120 @@ When any circle member moves:
 
 ---
 
-## 9. Edge Function: `notify-on-location`
+## 9. Edge Function (notify-on-location)
 
-Location:
+This project uses a Supabase Edge Function to send push notifications when a circle member enters a user‑defined radius.
 
+How it works end‑to‑end:
+
+- App writes the user’s latest location to public.locations via upsertLocation when sharing is enabled.
+- A Supabase Realtime Webhook (INSERT/UPDATE on public.locations) posts the changed row to the Edge Function.
+- The function authenticates the webhook using an x-hook-secret header and uses the SERVICE_ROLE_KEY to bypass RLS.
+- It fetches relevant radius subscriptions for the moving user via RPC (get_relevant_radius_subscriptions), computes distance using Haversine, checks entry state to avoid duplicates, and sends push via Expo.
+
+Setup checklist:
+
+1. Run base schema and push schema in the SQL editor (tables: locations, device_tokens, radius_subscriptions, entry_states; RPC: get_relevant_radius_subscriptions).
+2. Save secrets:
+   - SUPABASE_URL = https://<project-ref>.supabase.co
+   - SUPABASE_SERVICE_ROLE_KEY = service_role from Settings > API
+   - HOOK_SECRET = random hex (e.g., openssl rand -hex 32)
+3. Deploy function:
+   - supabase functions deploy notify-on-location --no-verify-jwt
+   - Endpoint: https://<project-ref>.supabase.co/functions/v1/notify-on-location
+4. Configure Realtime Webhook (Postgres Changes → public.locations → INSERT/UPDATE) with header x-hook-secret: <HOOK_SECRET>.
+5. Ensure device tokens are registered after sign‑in (registerPushToken).
+
+Local testing:
+
+- supabase start
+- supabase functions serve notify-on-location
+- curl -X POST http://localhost:54321/functions/v1/notify-on-location \
+  -H "Content-Type: application/json" -H "x-hook-secret: <HOOK_SECRET>" \
+  -d '{"record":{"user_id":"<uuid>","lat":40.0,"lng":-74.0,"updated_at":"2025-01-01T00:00:00Z"}}'
+
+Notes:
+
+- Use Deno.serve in functions (modern pattern).
+- Prefer /functions/v1/<name> invocation path.
+- Keep SERVICE_ROLE_KEY only in function secrets.
+
+## 9.1 Radius Alerts Enhancements (Planned)
+
+- Exit notifications: also notify on inside → outside transitions (“leave radius”).
+- Rate limiting: add notification_events table and suppress alerts if the last (subscription_id, subject_user_id) event is within X seconds.
+- Batch device token queries: fetch tokens for all relevant owners once to reduce round trips.
+- Improved logging: include function name and event type in responses for easier debugging.
+- UI additions: radius alerts management screen and a device token registration helper in the app.
+
+## Working CURL Commands
+
+For local testing of the hello-world Edge Function. Make sure docker is running
+and supbase start is run.
+
+Without JWT
+
+```powershell
+$body = @{ name = "Functions" } | ConvertTo-Json
+Invoke-RestMethod -Method POST `
+  -Uri "http://127.0.0.1:54321/functions/v1/hello-world" `
+  -ContentType "application/json" `
+  -Body $body
 ```
-supabase/functions/notify-on-location/index.ts
+
+If your function requires auth, replace with your local anon JWT from Studio (Settings → API):
+
+With JWT
+
+```powershell
+$anon = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+$body = @{ name = "Functions" } | ConvertTo-Json
+Invoke-RestMethod -Method POST `
+  -Uri "http://127.0.0.1:54321/functions/v1/hello-world" `
+  -Headers @{ Authorization = "Bearer $anon"; apikey = $anon } `
+  -ContentType "application/json" `
+  -Body $body
 ```
 
-Deploy:
+With JWT and webhook
 
-```bash
-supabase functions deploy notify-on-location
+```powershell
+$HOOK = "bffb6bc2ac78a211085868a64880d159a7e63aeb08492596d9d56ce29a16dee7"
+$ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+$body = @{
+  record = @{
+    user_id   = "00000000-0000-0000-0000-000000000000"
+    lat       = 40.0001
+    lng       = -74.0002
+    updated_at = (Get-Date).ToUniversalTime().ToString("o")
+  }
+} | ConvertTo-Json
+Invoke-RestMethod -Method POST `
+  -Uri "http://127.0.0.1:54321/functions/v1/notify-on-location" `
+  -Headers @{ Authorization = "Bearer $ANON"; apikey = $ANON; "x-hook-secret" = $HOOK } `
+  -ContentType "application/json" `
+  -Body $body
 ```
 
-Realtime Webhook:
+Live with web hook
 
-- Dashboard → Realtime → Webhooks → New Webhook
-- Source: Postgres Changes
-- Events: INSERT, UPDATE
-- Schema: public
-- Table: locations
-- Endpoint: https://<project-ref>.functions.supabase.co/notify-on-location
-- (Optional) Header: `x-hook-secret: <HOOK_SECRET>`
-
-Logic:
-
-- Calls RPC `get_relevant_radius_subscriptions(subject_user uuid)`
-- Uses `entry_states` to prevent duplicate notifications
-- Sends batch to Expo push API `https://exp.host/--/api/v2/push/send`
+```powershell
+$HOOK = "Secret Hook"
+$PUB = "SUPABASE_PUBLISHABLE_KEY"
+$body = @{
+  record = @{
+    user_id   = "00000000-0000-0000-0000-000000000000"
+    lat       = 40.0001
+    lng       = -74.0002
+    updated_at = (Get-Date).ToUniversalTime().ToString("o")
+  }
+} | ConvertTo-Json
+Invoke-RestMethod -Method POST `
+  -Uri "https://yhmfpwuzznfhslmhyhwh.supabase.co/functions/v1/notify-on-location" `
+  -Headers @{ Authorization = "Bearer $PUB"; apikey = $PUB; "x-hook-secret" = $HOOK } `
+  -ContentType "application/json" `
+  -Body $body
+```
 
 ---
 

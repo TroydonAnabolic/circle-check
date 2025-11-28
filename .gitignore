@@ -43,3 +43,5 @@ app-example
 /android
 .env
 /debug
+
+app.json

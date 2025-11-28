@@ -4,7 +4,11 @@
     "slug": "circle-check",
     "scheme": "circlecheck",
     "version": "1.0.0",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
@@ -57,6 +61,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e817db6d-ab2a-40ab-8fe4-7ef0d9adc9b0"
+      }
+    },
+    "owner": "troydonanabolic"
   }
 }

@@ -102,6 +102,8 @@ Example test POST after deploy: curl -X POST
 https://<project-ref>.supabase.co/functions/v1/notify-on-location
 
 TODOS:
+set maps initial cordinates where your device is
+fix add circle and determine how its functionality works
 Add exit notifications (inside → outside) for “leave radius”.
 Rate limit: Create a table notification_events and only send if last event for (subscription_id, subject_user_id) > X seconds.
 Batch device token queries for all subscriptions first (reduce round trips).

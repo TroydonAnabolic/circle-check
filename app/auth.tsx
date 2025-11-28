@@ -16,6 +16,8 @@ __DEV__
         : makeRedirectUri({ scheme: 'circlecheck' }))
     : 'circlecheck://index';
 
+console.log('Redirect URI:', redirectTo);
+
 async function createSessionFromUrl(
     url: string,
     supabase: ReturnType<typeof useSupabase>,

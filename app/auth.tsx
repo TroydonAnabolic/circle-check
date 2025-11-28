@@ -1,76 +1,58 @@
 import { useSupabase } from '@/lib/supabase/client';
-import { makeRedirectUri } from 'expo-auth-session';
-import * as QueryParams from 'expo-auth-session/build/QueryParams';
-import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Platform, Text, TextInput, View } from 'react-native';
-
-WebBrowser.maybeCompleteAuthSession(); // web compatibility
-
-const redirectTo = makeRedirectUri();
-__DEV__
-    ? (Platform.OS === 'android' || Platform.OS === 'ios'
-        ? makeRedirectUri() // exp://<ip>:<port>
-        : makeRedirectUri({ scheme: 'circlecheck' }))
-    : 'circlecheck://index';
-
-console.log('Redirect URI:', redirectTo);
-
-async function createSessionFromUrl(
-    url: string,
-    supabase: ReturnType<typeof useSupabase>,
-    onSuccessNavigate: () => void
-) {
-    try {
-        const { params, errorCode } = QueryParams.getQueryParams(url);
-        if (errorCode) throw new Error(errorCode);
-        const { access_token, refresh_token } = params;
-        if (!access_token || !refresh_token) return;
-        const { data, error } = await supabase.auth.setSession({
-            access_token,
-            refresh_token,
-        });
-        if (error) throw error;
-        // Navigate once the session is set
-        onSuccessNavigate();
-    } catch (e: any) {
-        console.warn('Session link parse failed', e.message);
-    }
-}
-
+import { Alert, Button, Text, TextInput, View } from 'react-native';
 
 export default function Auth() {
     const supabase = useSupabase();
     const router = useRouter();
     const [email, setEmail] = useState('');
-    const incoming = Linking.useURL();
+    const [code, setCode] = useState('');
+    const [sent, setSent] = useState(false);
 
     useEffect(() => {
-        if (incoming) {
-            createSessionFromUrl(incoming, supabase, () => {
-                router.replace('/(tabs)/map');
-            });
-        }
-    }, [incoming]);
+        // if session exists, your index route will redirect to /(tabs)/map
+        // you can optionally fetch session here and navigate
+    }, []);
 
-    const sendMagicLink = async () => {
+    const sendOtp = async () => {
         if (!email) {
             Alert.alert('Email required');
             return;
         }
         const { error } = await supabase.auth.signInWithOtp({
             email,
-            options: { emailRedirectTo: redirectTo },
+            options: {
+                shouldCreateUser: true, // auto-signup if not existing
+            },
         });
         if (error) Alert.alert('Error', error.message);
-        else Alert.alert('Check your email', 'Magic sign-in link sent.');
+        else {
+            setSent(true);
+            Alert.alert('Check your email', 'We sent a 6-digit code.');
+        }
+    };
+
+    const verifyOtp = async () => {
+        if (!email || !code) {
+            Alert.alert('Enter email and code');
+            return;
+        }
+        const { data, error } = await supabase.auth.verifyOtp({
+            email,
+            token: code.trim(),
+            type: 'email',
+        });
+        if (error) {
+            Alert.alert('Invalid code', error.message);
+            return;
+        }
+        router.replace('/(tabs)/map');
     };
 
     return (
         <View style={{ flex: 1, padding: 20, gap: 12 }}>
-            <Text style={{ fontSize: 18, fontWeight: '600' }}>Sign in with magic link</Text>
+            <Text style={{ fontSize: 18, fontWeight: '600' }}>Sign in with Email OTP</Text>
             <TextInput
                 placeholder="email@example.com"
                 autoCapitalize="none"
@@ -79,7 +61,20 @@ export default function Auth() {
                 onChangeText={setEmail}
                 style={{ borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 8 }}
             />
-            <Button title="Send Magic Link" onPress={sendMagicLink} />
+            <Button title="Send Code" onPress={sendOtp} />
+            {sent && (
+                <>
+                    <TextInput
+                        placeholder="Enter 6-digit code"
+                        keyboardType="number-pad"
+                        value={code}
+                        onChangeText={setCode}
+                        maxLength={8}
+                        style={{ borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 8 }}
+                    />
+                    <Button title="Verify Code" onPress={verifyOtp} />
+                </>
+            )}
         </View>
     );
 }

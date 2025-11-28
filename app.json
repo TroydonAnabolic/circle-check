@@ -4,17 +4,16 @@
     "slug": "circle-check",
     "scheme": "circlecheck",
     "version": "1.0.0",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyB_2DqVa2sv1i-VdS5yo1ZyC6kZ9IyOZ1c"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Circle Check uses your location to share it with trusted contacts.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow background location to keep your location updated for your circle.",
@@ -36,6 +35,11 @@
         "FOREGROUND_SERVICE",
         "ACCESS_BACKGROUND_LOCATION"
       ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyB_2DqVa2sv1i-VdS5yo1ZyC6kZ9IyOZ1c"
+        }
+      },
       "package": "com.circlecheck.app"
     },
     "web": {

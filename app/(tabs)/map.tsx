@@ -71,20 +71,31 @@ export default function MapScreen() {
 
     return (
         <View style={{ flex: 1 }}>
-            <MapView style={{ flex: 1 }} initialRegion={region}>
-                {myLoc && (
+            {myLoc ? (
+                <MapView
+                    style={{ flex: 1 }}
+                    initialRegion={{
+                        latitude: myLoc.lat,
+                        longitude: myLoc.lng,
+                        latitudeDelta: 0.05,
+                        longitudeDelta: 0.05,
+                    }}
+                    showsUserLocation
+                >
                     <Marker coordinate={{ latitude: myLoc.lat, longitude: myLoc.lng }} title="You" />
-                )}
-                {others.map((o) => (
-                    <Marker
-                        key={o.user_id}
-                        coordinate={{ latitude: o.lat, longitude: o.lng }}
-                        title={o.profiles?.email ?? o.user_id}
-                        description={`Updated ${new Date(o.updated_at).toLocaleTimeString()}`}
-                        onCalloutPress={() => openDirections(o.lat, o.lng)}
-                    />
-                ))}
-            </MapView>
+                    {others.map((o) => (
+                        <Marker
+                            key={o.user_id}
+                            coordinate={{ latitude: o.lat, longitude: o.lng }}
+                            title={o.profiles?.email ?? o.user_id}
+                            description={`Updated ${new Date(o.updated_at).toLocaleTimeString()}`}
+                            onCalloutPress={() => openDirections(o.lat, o.lng)}
+                        />
+                    ))}
+                </MapView>
+            ) : (
+                <View style={{ flex: 1 }} /> // Optional: show a loader here
+            )}
             <View style={{ position: 'absolute', bottom: 20, left: 20, right: 20 }}>
                 <Button title="Refresh" onPress={loadOthers} />
             </View>

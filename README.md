@@ -226,7 +226,11 @@ Notes:
 ## Working CURL Commands
 
 For local testing of the hello-world Edge Function. Make sure docker is running
-and supbase start is run.
+and run:
+supbase start
+
+For local dev run to start function:
+supabase functions serve notify-on-location
 
 Without JWT
 
@@ -259,7 +263,7 @@ $HOOK = "bffb6bc2ac78a211085868a64880d159a7e63aeb08492596d9d56ce29a16dee7"
 $ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 $body = @{
   record = @{
-    user_id   = "00000000-0000-0000-0000-000000000000"
+    user_id   = "4ae16a6e-26c6-44da-a177-7050224e3310"
     lat       = 40.0001
     lng       = -74.0002
     updated_at = (Get-Date).ToUniversalTime().ToString("o")
@@ -279,7 +283,7 @@ $HOOK = "Secret Hook"
 $PUB = "SUPABASE_PUBLISHABLE_KEY"
 $body = @{
   record = @{
-    user_id   = "00000000-0000-0000-0000-000000000000"
+    user_id   = "4ae16a6e-26c6-44da-a177-7050224e3310"
     lat       = 40.0001
     lng       = -74.0002
     updated_at = (Get-Date).ToUniversalTime().ToString("o")

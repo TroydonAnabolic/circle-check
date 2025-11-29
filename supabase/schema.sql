@@ -125,15 +125,15 @@ create policy "update invites status"
 
 -- RPCs
 create or replace function public.get_circle_members(circle_id uuid, requester_id uuid)
-returns table (user_id uuid, email text, joined_at timestamptz)
+returns table (user_id uuid, email text, joined_at timestamptz, color text)
 language sql security definer set search_path = public as $$
   with allowed as (
-    select 1 from memberships where circle_id = $1 and user_id = $2
+    select 1 from memberships where circle_id = p_circle_id and user_id = p_requester_id
   )
-  select m.user_id, p.email, m.created_at
+  select m.user_id, p.email, m.created_at as joined_at, m.color
   from memberships m
   join profiles p on p.id = m.user_id
-  where m.circle_id = $1
+  where m.circle_id = p_circle_id
     and exists (select 1 from allowed);
 $$;
 
@@ -226,15 +226,15 @@ language sql security definer set search_path = public as $$
 $$;
 
 -- Fix: recreate the update policy without IF NOT EXISTS
-drop policy if exists "update my circle membership color" on memberships;
+drop policy if exists "update membership color" on memberships;
 
-create policy "update my circle membership color"
+-- Allow any member of a circle to update color for any membership in that circle
+create policy "update membership color"
 on memberships
 for update
 using (
   exists (
-    select 1
-    from memberships me
+    select 1 from memberships me
     where me.circle_id = memberships.circle_id
       and me.user_id = auth.uid()
   )

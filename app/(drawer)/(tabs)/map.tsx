@@ -1,7 +1,7 @@
 import { useSession, useSupabase } from '@/lib/supabase/client';
 import * as Location from 'expo-location';
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useGlobalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react'; // added useRef
 import { Alert, Button, Linking, Platform, View } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 
@@ -17,10 +17,11 @@ type LiveLocation = {
 export default function MapScreen() {
     const supabase = useSupabase();
     const { session } = useSession();
+    const mapRef = useRef<MapView | null>(null); // define the ref
     const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
     const [others, setOthers] = useState<LiveLocation[]>([]);
-    const { focusUserId, focusColor } = useLocalSearchParams<{ focusUserId?: string; focusColor?: string }>();
-    const mapRef = useRef<MapView | null>(null);
+    const { focusUserId, focusColor } = useGlobalSearchParams<{ focusUserId?: string; focusColor?: string }>();
+    const [refreshTick, setRefreshTick] = useState(0); // forces marker re-render on refresh
 
     useEffect(() => {
         (async () => {
@@ -39,31 +40,49 @@ export default function MapScreen() {
         const { data, error } = await supabase.rpc('get_circle_member_locations', {
             p_requester_id: session.user.id,
         });
-        if (error) Alert.alert('Error', error.message);
-        else setOthers(data ?? []);
+        if (error) {
+            Alert.alert('Error', error.message);
+        } else {
+            // Verify we have colors
+            console.log('Member locations:', (data ?? []).map(d => ({ user_id: d.user_id, color: d.color })));
+            setOthers(data ?? []);
+            setRefreshTick(t => t + 1); // bump to refresh marker keys
+        }
     };
 
+    // React to focusColor changes (e.g., tracking again with a new color)
+    useEffect(() => {
+        // No-op if not tracking anyone
+        if (!focusUserId) return;
+        // When focusColor param changes, re-render markers automatically.
+    }, [focusColor, focusUserId]);
+
+    // Subscribe to updates (locations + membership color)
     useEffect(() => {
         if (!session?.user) return;
         loadOthers();
-        const channel = supabase
+        const locChannel = supabase
             .channel('locations-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'locations' }, (payload) => {
-                console.log('Realtime locations change', payload);
-                loadOthers();
-            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'locations' }, loadOthers)
             .subscribe();
-        return () => { supabase.removeChannel(channel); };
+        const memChannel = supabase
+            .channel('memberships-realtime')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'memberships' }, loadOthers)
+            .subscribe();
+        return () => {
+            supabase.removeChannel(locChannel);
+            supabase.removeChannel(memChannel);
+        };
     }, [session?.user?.id]);
 
-    // Center camera on tracked user when focusUserId changes
+    // Center on tracked user when focusUserId changes
     useEffect(() => {
         if (!focusUserId) return;
-        const target = others.find((o) => o.user_id === focusUserId);
+        const target = others.find(o => o.user_id === focusUserId);
         if (target && mapRef.current) {
             mapRef.current.animateCamera(
                 { center: { latitude: target.lat, longitude: target.lng }, zoom: 15 },
-                { duration: 600 }
+                { duration: 500 }
             );
         }
     }, [focusUserId, others]);
@@ -91,7 +110,7 @@ export default function MapScreen() {
         <View style={{ flex: 1 }}>
             {myLoc ? (
                 <MapView
-                    ref={(r) => (mapRef.current = r)}
+                    ref={(r) => (mapRef.current = r)} // attach ref
                     style={{ flex: 1 }}
                     initialRegion={{
                         latitude: myLoc.lat,
@@ -112,13 +131,12 @@ export default function MapScreen() {
                     {/* Others markers */}
                     {others.map((o) => {
                         const isTracked = o.user_id === focusUserId;
-                        // Use the color from RPC, but if we’re tracking and a focusColor param is provided, prefer it
-                        const pinColor = (isTracked && typeof focusColor === 'string' && /^#([0-9a-fA-F]{6})$/.test(focusColor))
-                            ? focusColor
-                            : (o.color ?? (isTracked ? '#ff3b30' : '#2f95dc'));
+                        const override =
+                            typeof focusColor === 'string' && /^#([0-9a-fA-F]{6})$/.test(focusColor) ? focusColor : undefined;
+                        const pinColor = isTracked && override ? override : (o.color ?? '#2f95dc');
                         return (
                             <Marker
-                                key={o.user_id}
+                                key={`${o.user_id}-${refreshTick}`} // ensures re-render when colors change
                                 coordinate={{ latitude: o.lat, longitude: o.lng }}
                                 title={o.email ?? o.user_id}
                                 description={`Updated ${new Date(o.updated_at).toLocaleTimeString()}`}

@@ -107,10 +107,9 @@ function CircleItem({ item, invite }: { item: Circle; invite: (id: string, email
     const loadMembers = async () => {
         if (!session?.user) return;
         setLoading(true);
-        // Use RPC that checks you belong to the circle, then returns all members with email
         const { data, error } = await supabase.rpc('get_circle_members', {
-            circle_id: item.id,
-            requester_id: session.user.id,
+            p_circle_id: item.id,
+            p_requester_id: session.user.id,
         });
         setLoading(false);
         if (error) return Alert.alert('Error', error.message);
@@ -119,8 +118,7 @@ function CircleItem({ item, invite }: { item: Circle; invite: (id: string, email
                 user_id: m.user_id,
                 email: m.email,
                 joined_at: m.joined_at,
-                // keep existing default color until we extend RPC to include it
-                color: '#2f95dc',
+                color: /^#([0-9a-fA-F]{6})$/.test(m.color ?? '') ? m.color : '#2f95dc',
             }))
         );
     };
@@ -132,20 +130,27 @@ function CircleItem({ item, invite }: { item: Circle; invite: (id: string, email
     const goTrack = (memberId: string) => {
         const m = members.find(mm => mm.user_id === memberId);
         const focusColor = m?.color ?? '#2f95dc';
-        router.push({ pathname: '/(drawer)/(tabs)/map', params: { focusUserId: memberId, focusColor } });
+        router.push({
+            pathname: '/(drawer)/(tabs)/map',
+            params: { focusUserId: memberId, focusColor, _r: Date.now().toString() } // _r forces param change
+        });
     };
 
     const saveColor = async (memberId: string, color: string) => {
         const hex = color.trim();
-        const { error } = await supabase
-            .from('memberships')
-            .update({ color: hex })
-            .eq('circle_id', item.id)
-            .eq('user_id', memberId);
+        if (!/^#([0-9a-fA-F]{6})$/.test(hex)) return Alert.alert('Invalid color', 'Use hex like #ff3b30');
+
+        // Use RPC to bypass RLS issues
+        const { error } = await supabase.rpc('set_membership_color', {
+            p_circle_id: item.id,
+            p_member_id: memberId,
+            p_color: hex,
+        });
         if (error) return Alert.alert('Error', error.message);
-        setMembers((prev) => prev.map((m) => (m.user_id === memberId ? { ...m, color: hex } : m)));
+
+        // Update local state immediately
+        setMembers(prev => prev.map(m => m.user_id === memberId ? { ...m, color: hex } : m));
         setOpenPaletteFor(null);
-        // No navigation here; Map will get the override via focusColor when you tap Track.
     };
 
     return (

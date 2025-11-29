@@ -102,8 +102,6 @@ Example test POST after deploy: curl -X POST
 https://<project-ref>.supabase.co/functions/v1/notify-on-location
 
 TODOS:
-fix api error when loading maps on dev client
-set maps initial cordinates where your device is
 fix add circle and determine how its functionality works
 firebase push notifications instead of expo push notifications
 Add exit notifications (inside → outside) for “leave radius”.

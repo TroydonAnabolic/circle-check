@@ -29,7 +29,7 @@ export default function Auth() {
         if (error) Alert.alert('Error', error.message);
         else {
             setSent(true);
-            Alert.alert('Check your email', 'We sent a 6-digit code.');
+            Alert.alert('Check your email', 'We sent a 8-digit code.');
         }
     };
 
@@ -65,7 +65,7 @@ export default function Auth() {
             {sent && (
                 <>
                     <TextInput
-                        placeholder="Enter 6-digit code"
+                        placeholder="Enter 8-digit code"
                         keyboardType="number-pad"
                         value={code}
                         onChangeText={setCode}

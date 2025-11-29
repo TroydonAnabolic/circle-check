@@ -1,11 +1,21 @@
 import { useSession } from '@/lib/supabase/client';
-import { Redirect } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 
 export default function Index() {
     const { session } = useSession();
-    if (session) {
-        // Land on the map tab when signed in
-        return <Redirect href="/(tabs)/map" />;
-    }
-    return <Redirect href="/auth" />;
+    const router = useRouter();
+
+    useEffect(() => {
+        if (session === undefined) return; // still restoring
+        if (session) router.replace('/(drawer)/(tabs)/map');
+        else router.replace('/auth');
+    }, [session]);
+
+    return (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator />
+        </View>
+    );
 }

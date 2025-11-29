@@ -1,9 +1,9 @@
 import { upsertLocation } from '@/lib/location';
-import { useSession, useSupabase } from '@/lib/supabase/client';
 import { registerPushToken } from '@/lib/notifications';
+import { useSession, useSupabase } from '@/lib/supabase/client';
 import * as Location from 'expo-location';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Switch, Text, View } from 'react-native';
+import { Alert, Switch, Text, View } from 'react-native';
 
 export default function Profile() {
     const supabase = useSupabase();
@@ -25,6 +25,11 @@ export default function Profile() {
 
     const toggleShare = async (val: boolean) => {
         setSharing(val);
+        if (!session?.user) {
+            Alert.alert('Not signed in', 'Please sign in to share location.');
+            setSharing(false);
+            return;
+        }
         if (val) {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
@@ -58,7 +63,6 @@ export default function Profile() {
                 <Text>Share my location with my circles</Text>
                 <Switch value={sharing} onValueChange={toggleShare} />
             </View>
-            <Button title="Sign Out" onPress={() => supabase.auth.signOut()} />
         </View>
     );
 }

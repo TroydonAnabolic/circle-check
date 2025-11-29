@@ -1,16 +1,8 @@
-// module.exports = function (api) {
-//   api.cache(true);
-//   return {
-//     presets: ['babel-preset-expo'],
-//   };
-// };
-
 module.exports = function (api) {
   api.cache(true);
   return {
     presets: ["babel-preset-expo"],
     plugins: [
-      // require.resolve("expo-router/babel"),
       [
         "module-resolver",
         {
@@ -18,6 +10,8 @@ module.exports = function (api) {
           alias: { "@": "./" },
         },
       ],
+      // Reanimated plugin MUST be last
+      "react-native-reanimated/plugin",
     ],
   };
 };

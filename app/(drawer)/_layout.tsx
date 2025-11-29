@@ -1,16 +1,18 @@
 import { useSupabase } from '@/lib/supabase/client';
 import { DrawerContentScrollView, DrawerItem, DrawerItemList } from '@react-navigation/drawer';
+import { useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
 import { View } from 'react-native';
 
 function CustomDrawerContent(props: any) {
     const supabase = useSupabase();
+    const router = useRouter();
 
     const signOut = async () => {
         try {
             await supabase.auth.signOut();
-            // Optionally navigate to auth
-            props.navigation?.replace?.('/auth');
+            // Use expo-router to navigate by path
+            router.replace('/auth');
         } catch (e) {
             console.warn('Sign out failed', e);
         }

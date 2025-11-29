@@ -1,4 +1,5 @@
 import { useSession, useSupabase } from '@/lib/supabase/client';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Button, FlatList, Platform, RefreshControl, Text, TextInput, ToastAndroid, View } from 'react-native';
 
@@ -104,6 +105,7 @@ function CircleItem({ item, invite }: { item: Circle; invite: (id: string, email
     const [members, setMembers] = useState<Member[]>([]);
     const [pendingInvites, setPendingInvites] = useState<{ id: string; invitee_email: string }[]>([]);
     const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
     const loadMembers = async () => {
         if (!session?.user) return;
@@ -131,6 +133,11 @@ function CircleItem({ item, invite }: { item: Circle; invite: (id: string, email
         loadPendingInvites();
     }, [item.id, session?.user?.id]);
 
+    const goTrack = (memberId: string) => {
+        // Navigate to Map and pass a param to focus on memberId
+        router.push({ pathname: '/(drawer)/(tabs)/map', params: { focusUserId: memberId } });
+    };
+
     return (
         <View style={{ paddingVertical: 12, gap: 8, borderBottomWidth: 1, borderColor: '#eee' }}>
             <Text style={{ fontSize: 16, fontWeight: '600' }}>{item.name}</Text>
@@ -141,9 +148,12 @@ function CircleItem({ item, invite }: { item: Circle; invite: (id: string, email
                     Members {loading ? '(loading...)' : `(${members.length})`}
                 </Text>
                 {members.map((m) => (
-                    <Text key={m.user_id} style={{ color: '#333' }}>
-                        • {m.email}
-                    </Text>
+                    <View key={m.user_id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ color: '#333', flex: 1 }}>• {m.email}</Text>
+                        {m.user_id !== session?.user?.id && (
+                            <Button title="Track" onPress={() => goTrack(m.user_id)} />
+                        )}
+                    </View>
                 ))}
             </View>
 

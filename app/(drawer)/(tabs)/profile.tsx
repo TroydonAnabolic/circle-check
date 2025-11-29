@@ -41,6 +41,11 @@ export default function Profile() {
                 { accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 5 },
                 async (loc) => {
                     if (!session?.user) return;
+                    console.log('Upsert my location', {
+                        user_id: session.user.id,
+                        lat: loc.coords.latitude,
+                        lng: loc.coords.longitude,
+                    });
                     await upsertLocation(supabase, {
                         user_id: session.user.id,
                         lat: loc.coords.latitude,

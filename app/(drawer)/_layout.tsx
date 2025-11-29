@@ -1,17 +1,19 @@
-import { useSupabase } from '@/lib/supabase/client';
+import { useSession, useSupabase } from '@/lib/supabase/client';
 import { DrawerContentScrollView, DrawerItem, DrawerItemList } from '@react-navigation/drawer';
 import { useRouter } from 'expo-router';
 import { Drawer } from 'expo-router/drawer';
-import { View } from 'react-native';
+import { Text, View } from 'react-native';
 
 function CustomDrawerContent(props: any) {
     const supabase = useSupabase();
+    const { session } = useSession();
     const router = useRouter();
+
+    const email = session?.user?.email ?? 'Signed out';
 
     const signOut = async () => {
         try {
             await supabase.auth.signOut();
-            // Use expo-router to navigate by path
             router.replace('/auth');
         } catch (e) {
             console.warn('Sign out failed', e);
@@ -20,6 +22,11 @@ function CustomDrawerContent(props: any) {
 
     return (
         <DrawerContentScrollView {...props} contentContainerStyle={{ flex: 1 }}>
+            {/* Header with email */}
+            <View style={{ padding: 16, borderBottomWidth: 1, borderColor: '#eee' }}>
+                <Text style={{ fontSize: 16, fontWeight: '600' }}>{email}</Text>
+            </View>
+
             <DrawerItemList {...props} />
             <View style={{ marginTop: 'auto' }}>
                 <DrawerItem label="Sign Out" onPress={signOut} />

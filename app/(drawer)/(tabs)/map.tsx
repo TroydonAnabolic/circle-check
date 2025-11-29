@@ -10,7 +10,8 @@ type LiveLocation = {
     lat: number;
     lng: number;
     updated_at: string;
-    profiles?: { email: string };
+    email?: string;
+    color?: string; // from RPC
 };
 
 export default function MapScreen() {
@@ -18,7 +19,7 @@ export default function MapScreen() {
     const { session } = useSession();
     const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
     const [others, setOthers] = useState<LiveLocation[]>([]);
-    const { focusUserId } = useLocalSearchParams<{ focusUserId?: string }>();
+    const { focusUserId, focusColor } = useLocalSearchParams<{ focusUserId?: string; focusColor?: string }>();
     const mapRef = useRef<MapView | null>(null);
 
     useEffect(() => {
@@ -35,13 +36,11 @@ export default function MapScreen() {
 
     const loadOthers = async () => {
         if (!session?.user) return;
-        const { data, error } = await supabase.rpc('get_circle_member_locations', { requester_id: session.user.id });
-        if (error) {
-            Alert.alert('Error', error.message);
-        } else {
-            console.log('Loaded member locations count:', data?.length ?? 0);
-            setOthers(data ?? []);
-        }
+        const { data, error } = await supabase.rpc('get_circle_member_locations', {
+            p_requester_id: session.user.id,
+        });
+        if (error) Alert.alert('Error', error.message);
+        else setOthers(data ?? []);
     };
 
     useEffect(() => {
@@ -113,19 +112,19 @@ export default function MapScreen() {
                     {/* Others markers */}
                     {others.map((o) => {
                         const isTracked = o.user_id === focusUserId;
+                        // Use the color from RPC, but if we’re tracking and a focusColor param is provided, prefer it
+                        const pinColor = (isTracked && typeof focusColor === 'string' && /^#([0-9a-fA-F]{6})$/.test(focusColor))
+                            ? focusColor
+                            : (o.color ?? (isTracked ? '#ff3b30' : '#2f95dc'));
                         return (
                             <Marker
                                 key={o.user_id}
                                 coordinate={{ latitude: o.lat, longitude: o.lng }}
-                                title={o.profiles?.email ?? o.user_id}
+                                title={o.email ?? o.user_id}
                                 description={`Updated ${new Date(o.updated_at).toLocaleTimeString()}`}
-                                pinColor={isTracked ? '#ff3b30' : '#2f95dc'}
+                                pinColor={pinColor}
                                 onCalloutPress={() => openDirections(o.lat, o.lng)}
-                            >
-                                {/* Optional custom icon */}
-                                {/* <Image source={isTracked ? require('@/assets/marker-tracked.png') : require('@/assets/marker-default.png')}
-                                        style={{ width: 30, height: 30 }} /> */}
-                            </Marker>
+                            />
                         );
                     })}
                 </MapView>

@@ -27,17 +27,20 @@ Features include real-time location updates, circles (groups), opt‑in foregrou
 
 ## 1. Features Overview
 
-| Feature                       | Description                                                |
-| ----------------------------- | ---------------------------------------------------------- |
-| Magic Link Auth               | Email-based login using Supabase Auth                      |
-| Circles                       | Create circles (groups) and invite existing users by email |
-| Foreground Sharing            | Updates every ~5s or ~5m (configurable) while app active   |
-| Background Sharing (optional) | Persistent updates using Expo Task Manager                 |
-| Real-Time Map                 | See circle members who have sharing enabled                |
-| Directions                    | Open native navigation (Apple Maps / Google Maps)          |
-| Push Radius Alerts (optional) | Notify when a circle member enters your defined area       |
-| Realtime Sync                 | Supabase Realtime via Postgres changes on `locations`      |
-| Single Location Row Per User  | Upsert pattern reduces storage & improves privacy          |
+| Feature                       | Description                                                                               |
+| ----------------------------- | ----------------------------------------------------------------------------------------- |
+| Magic Link Auth               | Email-based login using Supabase Auth                                                     |
+| Circles                       | Create circles, invite users, assign per‑member marker colors, and track any member       |
+| Member Color Palette          | Tap a member’s color swatch to choose from preset palette; persists immediately (RLS/RPC) |
+| Foreground Sharing            | Updates every ~5s or ~5m (configurable) while app active                                  |
+| Background Sharing (optional) | Persistent updates using Expo Task Manager                                                |
+| Real-Time Map                 | Shows circle members with unique colors + circle name badges                              |
+| Tracking & Focus              | Track button centers map and highlights selected member; color override passed via params |
+| Bottom Sheet Member Panel     | Tap marker to open a sliding panel with email, circles, timestamp, Directions button      |
+| Directions                    | Opens native navigation (Apple Maps / Google Maps)                                        |
+| Push Radius Alerts (optional) | Notify when a circle member enters your defined area                                      |
+| Realtime Sync                 | Supabase Realtime via Postgres changes on `locations` and membership color updates        |
+| Single Location Row Per User  | Upsert pattern reduces storage & improves privacy                                         |
 
 ---
 
@@ -125,15 +128,15 @@ These are exposed at build time (public keys only). Never embed service role key
 
 ## 6. Data Model (Core Tables)
 
-| Table                | Purpose                                | Notes                                    |
-| -------------------- | -------------------------------------- | ---------------------------------------- |
-| profiles             | User identity synced from `auth.users` | Trigger ensures auto creation            |
-| circles              | Group container                        | Members join via `memberships`           |
-| memberships          | Many-to-many user ↔ circle             | Compound PK `(circle_id, user_id)`       |
-| locations            | Latest user location                   | One row per user (upsert on share)       |
-| device_tokens        | Expo push tokens per device            | Used for notifications                   |
-| radius_subscriptions | Alert definitions                      | Owner-defined center + radius            |
-| entry_states         | Tracks inside/outside transitions      | Prevents duplicate “enter” notifications |
+| Table                | Purpose                                   | Notes                                                                 |
+| -------------------- | ----------------------------------------- | --------------------------------------------------------------------- |
+| profiles             | User identity synced from `auth.users`    | Trigger ensures auto creation                                         |
+| circles              | Group container                           | Members join via `memberships`                                        |
+| memberships          | User ↔ circle relation + per-member color | Column `color` stores hex (e.g. `#ff3b30`); editable by circle member |
+| locations            | Latest user location                      | One row per user (upsert)                                             |
+| device_tokens        | Expo push tokens per device               | Used for notifications                                                |
+| radius_subscriptions | Alert definitions                         | Center, radius, enabled                                               |
+| entry_states         | Tracks inside/outside transitions         | Prevent duplicate enter alerts                                        |
 
 ---
 
@@ -352,15 +355,13 @@ Recommendations:
 
 ## 13. Common Troubleshooting
 
-| Issue                            | Fix                                                                      |
-| -------------------------------- | ------------------------------------------------------------------------ |
-| Magic link doesn’t open app      | Check redirect URL `circlecheck://index` and scheme in `app.json`        |
-| Blank map (Android release)      | Add Google Maps API key or switch to MapLibre                            |
-| No location updates (background) | Ensure “Always” (iOS) / “Allow all the time” (Android) permissions       |
-| No push notification             | Confirm device token stored in `device_tokens`; check Edge Function logs |
-| Multiple duplicate push alerts   | Verify `entry_states` functioning; check webhook event storm             |
-| Invite fails                     | Invited email user must sign in at least once so profile exists          |
-| Realtime not updating map        | Enable replication / Realtime on `public.locations` table                |
+| Issue                    | Fix                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------- |
+| Member color not saving  | Ensure RPC `set_membership_color` exists or update policy added                     |
+| Marker invisible         | Confirm RPC returns lat/lng, fallback color applied                                 |
+| Own circles show “None”  | Load circles for current user (`memberships` join on `circles`) before marker press |
+| Color stale after change | Use Track (passes override) or Refresh to re-run RPC                                |
+| Empty others list        | Other users not sharing, not accepted invite, or function definition truncated      |
 
 ---
 
